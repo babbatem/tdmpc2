@@ -237,8 +237,11 @@ class BasicWipeEnv(gym.Env):
         return self._get_obs()
 
     def step(self, action):
+        # force in x and y
         force = action[0:2] * FORCE_SCALE
+        # torque in z
         torque = action[2] * TORQUE_SCALE
+        # [fx, fy ,0, 0, 0, tz]
         self.data.qfrc_applied = np.concatenate((force, [0], [0, 0, torque]))
 
         for _ in range(self.substeps):
