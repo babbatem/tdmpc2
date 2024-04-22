@@ -106,10 +106,12 @@ def train(cfg: dict):
 
         # TODO: Replace with configuration variable
         obs_shape = 21
+        # TODO: Create config variable for the priviliged size
+        priv_size = 4
         # TODO: Change history to be defined in the config file
         history_length = 20
         # Create the encoder
-        adapt_enc = create_encoder(cfg, obs_shape, history_length)
+        adapt_enc = create_encoder(cfg, obs_shape-priv_size, history_length)
 
         optimizer = torch.optim.Adam(adapt_enc.parameters())
         for i in range(cfg.adapt_episodes):
@@ -128,9 +130,13 @@ def train(cfg: dict):
                 obs, reward, done, info = env.step(action)
                 #print(obs)
                 ep_reward += reward
-            
+                
+                
                 # NOTE: new code added for adaptation module
-                obs_ep.append(obs)
+                # Remove the priviliged information
+                obs_reg = obs[0:-priv_size]
+                
+                obs_ep.append(obs_reg)
                 if (len(obs_ep) > history_length):
                     optimizer.zero_grad()
                     obs_flat = torch.cat(obs_ep[-history_length:], dim =0)
@@ -141,10 +147,7 @@ def train(cfg: dict):
                     batches += 1
                     loss.backward()  # Backpropagation
                     optimizer.step()  # Optimization step
-                    #if t%1 == 0:
-                         #print(f'Epoch [{i+1}/{cfg.adapt_episodes}], Loss: {loss.item():.6f}')
                 t += 1
-            print(f'Episode Length {t}')
             # Calculate average loss over the epoch
             avg_epoch_loss = epoch_loss / batches
 
@@ -152,6 +155,11 @@ def train(cfg: dict):
             wandb.log({"loss": avg_epoch_loss})
             # Print average loss
             print(f'Epoch [{i + 1}/{cfg.adapt_episodes}], Average Loss: {avg_epoch_loss:.6f}')
+            # TODO: Make a configuration file variable for the number of times the weights are saved
+            if (i + 1) % 10 == 0:
+                # Save encoder model checkpoint
+                encoder_checkpoint_path = os.path.join(wandb.run.dir, f"encoder_checkpoint_{i+1}.pt")
+                torch.save(adapt_enc.state_dict(), encoder_checkpoint_path)
         # Finish wandb run
         wandb.finish()
 
