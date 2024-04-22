@@ -16,6 +16,7 @@ def make_env(cfg):
     if not cfg.task in CUSTOM_TASKS:
         raise ValueError("Unknown task:", cfg.task)
     env = gym.make(CUSTOM_TASKS[cfg.task])
-    env = envs.basic_wipe_env.PrivelegedWrapper(env)
+    env = envs.basic_wipe_env.NonprivelegedWrapper(env) # No PI
+    # env = envs.basic_wipe_env.PrivelegedWrapper(env) # Yes PI
     env = TimeLimit(env, env.max_episode_steps)
     return env

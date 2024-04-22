@@ -6,12 +6,12 @@ task: basic-wipe
 obs: state
 
 # evaluation
-checkpoint: checkpoint_1
+checkpoint: checkpoint_2
 eval_episodes: 10
 eval_freq: 10_000
 
 # training
-steps: 150_000
+steps: 1_000_000
 batch_size: 256
 reward_coef: 0.1
 value_coef: 0.1
@@ -25,7 +25,7 @@ discount_denom: 5
 discount_min: 0.95
 discount_max: 0.995
 buffer_size: 1_000_000
-exp_name: test
+exp_name: without-pi
 data_dir: data_dir
 
 # planning
@@ -76,7 +76,7 @@ seed: 1
 # convenience
 work_dir: work_dir
 task_title: task_title
-multitask: true
+multitask: false
 tasks: ???
 obs_shape: ???
 action_dim: ???
