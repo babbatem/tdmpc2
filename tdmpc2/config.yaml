@@ -10,6 +10,9 @@ checkpoint: ???
 eval_episodes: 10
 eval_freq: 10_000
 
+# adaptation
+adapt_episodes: 10000
+
 # training
 steps: 400_000
 batch_size: 256
