@@ -52,7 +52,7 @@ def train(cfg: dict):
     """
     project_name = cfg.get("wandb_project", "none")
     entity_name = cfg.get("wandb_entity", "none")
-    
+    '''
     wandb.init(
             project=project_name,
             entity=entity_name,
@@ -61,7 +61,7 @@ def train(cfg: dict):
             monitor_gym=True,
             save_code=True,
         )
-    
+    '''
     assert torch.cuda.is_available()
     assert cfg.adapt_episodes > 0, "Must create adaptation training for at least 1 episode."
     cfg = parse_cfg(cfg)
@@ -113,7 +113,7 @@ def train(cfg: dict):
 
         optimizer = torch.optim.Adam(adapt_enc.parameters())
         for i in range(cfg.adapt_episodes):
-           
+            
             obs, done, ep_reward, t = env.reset(task_idx=task_idx), False, 0, 0
             
             # Define history of obs
@@ -126,12 +126,13 @@ def train(cfg: dict):
             while not done:
                 action = agent.act(obs, t0=t == 0, task=task_idx)
                 obs, reward, done, info = env.step(action)
-                
+                #print(obs)
                 ep_reward += reward
             
                 # NOTE: new code added for adaptation module
                 obs_ep.append(obs)
                 if (len(obs_ep) > history_length):
+                    optimizer.zero_grad()
                     obs_flat = torch.cat(obs_ep[-history_length:], dim =0)
                     new_z = adapt_enc(obs_flat).to(agent.device)
                     old_z = obtain_z (agent, obs, task_idx).to(agent.device)
@@ -148,11 +149,11 @@ def train(cfg: dict):
             avg_epoch_loss = epoch_loss / batches
 
             # Log average loss with wandb
-            wandb.log({"loss": avg_epoch_loss})
+            #wandb.log({"loss": avg_epoch_loss})
             # Print average loss
             print(f'Epoch [{i + 1}/{cfg.adapt_episodes}], Average Loss: {avg_epoch_loss:.6f}')
         # Finish wandb run
-        wandb.finish()
+        #wandb.finish()
 
 
 def obtain_z (agent, obs, task_idx):
@@ -161,12 +162,15 @@ def obtain_z (agent, obs, task_idx):
     if task_t is not None:
         task_t = torch.tensor([task_t], device=agent.device)
     z_0 = agent.model.encode(obs_t, task_t)
-    return z_0
+    return z_0.detach() # Teacher Z, detach so doesn't train
 
 def create_encoder (cfg, obs_shape, history_length):
+    #print( cfg.latent_dim)
+    #print(cfg.enc_dim)
+    # Changed encoder dim to be 1 hidden layers
     enc_mlp = layers.mlp(
                 torch.prod(torch.tensor(obs_shape))*history_length + cfg.task_dim,
-                max(cfg.num_enc_layers - 1, 1) * [cfg.enc_dim],
+                max(2 - 1, 1) * [cfg.enc_dim],
                 cfg.latent_dim,
                 act=layers.SimNorm(cfg),
             )
