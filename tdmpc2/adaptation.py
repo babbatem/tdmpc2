@@ -52,7 +52,7 @@ def train(cfg: dict):
     """
     project_name = cfg.get("wandb_project", "none")
     entity_name = cfg.get("wandb_entity", "none")
-    '''
+    
     wandb.init(
             project=project_name,
             entity=entity_name,
@@ -61,7 +61,7 @@ def train(cfg: dict):
             monitor_gym=True,
             save_code=True,
         )
-    '''
+    
     assert torch.cuda.is_available()
     assert cfg.adapt_episodes > 0, "Must create adaptation training for at least 1 episode."
     cfg = parse_cfg(cfg)
@@ -149,11 +149,11 @@ def train(cfg: dict):
             avg_epoch_loss = epoch_loss / batches
 
             # Log average loss with wandb
-            #wandb.log({"loss": avg_epoch_loss})
+            wandb.log({"loss": avg_epoch_loss})
             # Print average loss
             print(f'Epoch [{i + 1}/{cfg.adapt_episodes}], Average Loss: {avg_epoch_loss:.6f}')
         # Finish wandb run
-        #wandb.finish()
+        wandb.finish()
 
 
 def obtain_z (agent, obs, task_idx):
