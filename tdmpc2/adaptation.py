@@ -1,4 +1,8 @@
 import os
+import wandb
+
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+
 
 os.environ["MUJOCO_GL"] = "egl"
 import warnings
@@ -11,6 +15,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from termcolor import colored
+from omegaconf import OmegaConf
 
 # Added Layers import
 from common import layers
@@ -45,6 +50,18 @@ def train(cfg: dict):
             $ python evaluate.py task=dog-run checkpoint=/path/to/dog-1.pt save_video=true
     ```
     """
+    project_name = cfg.get("wandb_project", "none")
+    entity_name = cfg.get("wandb_entity", "none")
+    
+    wandb.init(
+            project=project_name,
+            entity=entity_name,
+            config=OmegaConf.to_container(cfg, resolve=True),
+            name="Adaptation test_longer_run",
+            monitor_gym=True,
+            save_code=True,
+        )
+    
     assert torch.cuda.is_available()
     assert cfg.adapt_episodes > 0, "Must create adaptation training for at least 1 episode."
     cfg = parse_cfg(cfg)
@@ -86,6 +103,15 @@ def train(cfg: dict):
     for task_idx, task in enumerate(tasks):
         if not cfg.multitask:
             task_idx = None
+
+        # TODO: Replace with configuration variable
+        obs_shape = 21
+        # TODO: Change history to be defined in the config file
+        history_length = 20
+        # Create the encoder
+        adapt_enc = create_encoder(cfg, obs_shape, history_length)
+
+        optimizer = torch.optim.Adam(adapt_enc.parameters())
         for i in range(cfg.adapt_episodes):
            
             obs, done, ep_reward, t = env.reset(task_idx=task_idx), False, 0, 0
@@ -94,11 +120,8 @@ def train(cfg: dict):
             # TODO: Delete obs in the array over time as more come in
             obs_ep = []
             obs_ep.append(obs)
-            # TODO: Change history to be defined in the config file
-            history_length = 10
-            # Create the encoder
-            adapt_enc = create_encoder(cfg, obs.shape, history_length)
-            optimizer = torch.optim.Adam(adapt_enc.parameters(), lr=cfg.learning_rate)
+            epoch_loss = 0.0
+            batches = 0
 
             while not done:
                 action = agent.act(obs, t0=t == 0, task=task_idx)
@@ -109,14 +132,27 @@ def train(cfg: dict):
                 # NOTE: new code added for adaptation module
                 obs_ep.append(obs)
                 if (len(obs_ep) > history_length):
-                    new_z = adapt_enc(obs_ep[-history_length:])
-                    old_z = obtain_z (agent, obs, task_idx)
+                    obs_flat = torch.cat(obs_ep[-history_length:], dim =0)
+                    new_z = adapt_enc(obs_flat).to(agent.device)
+                    old_z = obtain_z (agent, obs, task_idx).to(agent.device)
                     loss = nn.MSELoss()(old_z, new_z)  # Calculate MSE loss
+                    epoch_loss += loss.item()
+                    batches += 1
                     loss.backward()  # Backpropagation
                     optimizer.step()  # Optimization step
-                    if t%100 == 0:
-                         print(f'Epoch [{i+1}/{cfg.adapt_episodes}], Loss: {loss.item():.6f}')
+                    #if t%1 == 0:
+                         #print(f'Epoch [{i+1}/{cfg.adapt_episodes}], Loss: {loss.item():.6f}')
                 t += 1
+            print(f'Episode Length {t}')
+            # Calculate average loss over the epoch
+            avg_epoch_loss = epoch_loss / batches
+
+            # Log average loss with wandb
+            wandb.log({"loss": avg_epoch_loss})
+            # Print average loss
+            print(f'Epoch [{i + 1}/{cfg.adapt_episodes}], Average Loss: {avg_epoch_loss:.6f}')
+        # Finish wandb run
+        wandb.finish()
 
 
 def obtain_z (agent, obs, task_idx):
@@ -129,7 +165,7 @@ def obtain_z (agent, obs, task_idx):
 
 def create_encoder (cfg, obs_shape, history_length):
     enc_mlp = layers.mlp(
-                obs_shape*history_length + cfg.task_dim,
+                torch.prod(torch.tensor(obs_shape))*history_length + cfg.task_dim,
                 max(cfg.num_enc_layers - 1, 1) * [cfg.enc_dim],
                 cfg.latent_dim,
                 act=layers.SimNorm(cfg),
