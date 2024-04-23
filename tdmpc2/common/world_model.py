@@ -195,3 +195,25 @@ class WorldModel(nn.Module):
         Q1, Q2 = out[np.random.choice(self.cfg.num_q, 2, replace=False)]
         Q1, Q2 = math.two_hot_inv(Q1, self.cfg), math.two_hot_inv(Q2, self.cfg)
         return torch.min(Q1, Q2) if return_type == "min" else (Q1 + Q2) / 2
+
+
+    
+    # NOTE: New method implimented to resize the encoder in case it changes size
+    def resize_encoder(self,new_size,cfg,device):
+        out ={}
+
+        for k in cfg.obs_shape.keys():
+            if k == "state":
+                out[k] = layers.mlp(
+                    new_size,
+                    max(cfg.num_enc_layers - 1, 1) * [cfg.enc_dim],
+                    cfg.latent_dim,
+                    act=layers.SimNorm(cfg),
+                ).to(device)
+            elif k == "rgb":
+                out[k] = layers.conv(cfg.obs_shape[k], cfg.num_channels, act=layers.SimNorm(cfg))
+            else:
+                raise NotImplementedError(
+                    f"Encoder for observation type {k} not implemented."
+                )
+        self._encoder = nn.ModuleDict(out)

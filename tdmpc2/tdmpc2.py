@@ -81,7 +81,8 @@ class TDMPC2:
         """
         torch.save({"model": self.model.state_dict()}, fp)
 
-    def load(self, fp):
+    # NOTE: changed the load method to allow the encoder to be changed
+    def load(self, fp, new_encoder_path = None):
         """
         Load a saved state dict from filepath (or dictionary) into current agent.
 
@@ -89,6 +90,25 @@ class TDMPC2:
                 fp (str or dict): Filepath or state dict to load.
         """
         state_dict = fp if isinstance(fp, dict) else torch.load(fp)
+        if (new_encoder_path != None):
+            new_encoder_dict = torch.load(new_encoder_path)
+            # Resize layers of the model to match the new encoder
+            new_encoder_size = new_encoder_dict["0.weight"].shape[1]
+            current_encoder_size = state_dict["model"]["_encoder.state.0.weight"].shape[1]
+            print(new_encoder_size)
+            print(current_encoder_size)
+            # Iterate over the keys in the original dictionary
+            for key in list(state_dict["model"].keys()):
+                if key.startswith('_encoder'):
+                    # Extract the suffix after '_encoder.state.'
+                    suffix = key.split('_encoder.state.')[1]
+                    # Generate the corresponding replacement key
+                    new_key = f'{suffix}'
+                    # Replace the value in the original dictionary with the value from the replacement dictionary
+                    state_dict["model"][key] = new_encoder_dict[new_key]
+            if (new_encoder_size != current_encoder_size):
+                self.model.resize_encoder(new_encoder_size,self.cfg,self.device)
+            #print(state_dict["model"]["_encoder"])
         self.model.load_state_dict(state_dict["model"])
 
     @torch.no_grad()
