@@ -6,15 +6,12 @@ task: basic-wipe
 obs: state
 
 # evaluation
-checkpoint: ???
+checkpoint: checkpoint_2
 eval_episodes: 10
 eval_freq: 10_000
 
-# adaptation
-adapt_episodes: 10000
-
 # training
-steps: 400_000
+steps: 100_000
 batch_size: 256
 reward_coef: 0.1
 value_coef: 0.1
@@ -28,8 +25,8 @@ discount_denom: 5
 discount_min: 0.95
 discount_max: 0.995
 buffer_size: 1_000_000
-exp_name: default
-data_dir: ???
+exp_name: normal-with-pi
+data_dir: data_dir
 
 # planning
 mpc: true
@@ -65,7 +62,7 @@ dropout: 0.01
 simnorm_dim: 8
 
 # logging
-wandb_project: tdmpc2
+wandb_project: tdmpc2-dk
 wandb_entity: robin-abba
 wandb_silent: false
 disable_wandb: false
@@ -77,9 +74,9 @@ save_agent: true
 seed: 1
 
 # convenience
-work_dir: ???
-task_title: ???
-multitask: ???
+work_dir: work_dir
+task_title: task_title
+multitask: false
 tasks: ???
 obs_shape: ???
 action_dim: ???

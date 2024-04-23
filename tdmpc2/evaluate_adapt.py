@@ -82,7 +82,7 @@ def evaluate(cfg: dict):
     ), f"Checkpoint {cfg.checkpoint} not found! Must be a valid filepath."
    
     # Loads previous model plus the new encoder
-    agent.load(cfg.checkpoint, "/home/walter/Desktop/encoder_checkpoint_1980.pt")
+    agent.load(cfg.checkpoint, "/home/walter/Desktop/encoder_checkpoint_3240.pt")
     #agent.load(cfg.checkpoint)
     # TODO: Change to configuration file variable
     priv_size = 4
@@ -103,71 +103,72 @@ def evaluate(cfg: dict):
         os.makedirs(video_dir, exist_ok=True)
     scores = []
     tasks = cfg.tasks if cfg.multitask else [cfg.task]
-    for task_idx, task in enumerate(tasks):
-        if not cfg.multitask:
-            task_idx = None
-        ep_rewards, ep_successes = [], []
-        for i in range(10): # TODO: Add a parameter in the config for the number of epochs
-            obs, done, ep_reward, t = env.reset(task_idx=task_idx), False, 0, 0
-
-            obs_reg = obs[0:-priv_size]
-            obs_ep = []
-            obs_ep.append(obs_reg)
-
-            if cfg.save_video:
-                frames = [env.render()]
-            while not done:
-                obs_flat = []
-                if(len(obs_ep) < history_length):
-                    obs_flat = torch.cat([torch.zeros_like(obs_ep[0])] * (history_length - len(obs_ep)) + obs_ep, dim =0)   
-                else:
-                    obs_flat = torch.cat(obs_ep[-history_length:], dim =0)
-                
-                
-                
-                action = agent.act(obs_flat, t0=t == 0, task=task_idx)
-                
-                
-                
-                obs, reward, done, info = env.step(action)
-                ep_reward += reward
+    with torch.no_grad():
+        for task_idx, task in enumerate(tasks):
+            if not cfg.multitask:
+                task_idx = None
+            ep_rewards, ep_successes = [], []
+            for i in range(10): # TODO: Add a parameter in the config for the number of epochs
+                obs, done, ep_reward, t = env.reset(task_idx=task_idx), False, 0, 0
 
                 obs_reg = obs[0:-priv_size]
+                obs_ep = []
                 obs_ep.append(obs_reg)
 
                 if cfg.save_video:
-                    update_markers(agent, env, cfg, obs_flat, t == 0, task_idx)
-                    frames.append(env.render())
+                    frames = [env.render()]
+                while not done:
+                    obs_flat = []
+                    if(len(obs_ep) < history_length):
+                        obs_flat = torch.cat([torch.zeros_like(obs_ep[0])] * (history_length - len(obs_ep)) + obs_ep, dim =0)   
+                    else:
+                        obs_flat = torch.cat(obs_ep[-history_length:], dim =0)
+                    
+                    #obs_flat = obs
+                    
+                    action = agent.act(obs_flat, t0=t == 0, task=task_idx)
+                    
+                    
+                    
+                    obs, reward, done, info = env.step(action)
+                    ep_reward += reward
 
-                t += 1
-            obs_ep = []
-            torch.cuda.empty_cache()    
-            gc.collect()
-            ep_rewards.append(ep_reward)
-            ep_successes.append(info["success"])
-            print(info["success"])
-            if cfg.save_video:
-                imageio.mimsave(
-                    os.path.join(video_dir, f"{task}-{i}.mp4"), frames, fps=15
+                    obs_reg = obs[0:-priv_size]
+                    obs_ep.append(obs_reg)
+
+                    if cfg.save_video:
+                        update_markers(agent, env, cfg, obs_flat, t == 0, task_idx)
+                        frames.append(env.render())
+
+                    t += 1
+                obs_ep = []
+                torch.cuda.empty_cache()    
+                gc.collect()
+                ep_rewards.append(ep_reward)
+                ep_successes.append(info["success"])
+                print(info["success"])
+                if cfg.save_video:
+                    imageio.mimsave(
+                        os.path.join(video_dir, f"{task}-{i}.mp4"), frames, fps=15
+                    )
+            ep_rewards = np.mean(ep_rewards)
+            ep_successes = np.mean(ep_successes)
+            if cfg.multitask:
+                scores.append(
+                    ep_successes * 100 if task.startswith("mw-") else ep_rewards / 10
                 )
-        ep_rewards = np.mean(ep_rewards)
-        ep_successes = np.mean(ep_successes)
+            print(
+                colored(
+                    f"  {task:<22}" f"\tR: {ep_rewards:.01f}  " f"\tS: {ep_successes:.02f}",
+                    "yellow",
+                )
+            )
         if cfg.multitask:
-            scores.append(
-                ep_successes * 100 if task.startswith("mw-") else ep_rewards / 10
+            print(
+                colored(
+                    f"Normalized score: {np.mean(scores):.02f}", "yellow", attrs=["bold"]
+                )
             )
-        print(
-            colored(
-                f"  {task:<22}" f"\tR: {ep_rewards:.01f}  " f"\tS: {ep_successes:.02f}",
-                "yellow",
-            )
-        )
-    if cfg.multitask:
-        print(
-            colored(
-                f"Normalized score: {np.mean(scores):.02f}", "yellow", attrs=["bold"]
-            )
-        )
 
 
 def update_markers(agent, env, cfg, obs, t0, task_idx):
