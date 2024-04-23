@@ -48,14 +48,15 @@ def train(cfg: dict):
 
 
 	# Init agent
-	loaded_agent = TDMPC2(cfg) 
-	loaded_agent.load(cfg.checkpoint, "/home/walter/Desktop/encoder_checkpoint_3240.pt") # TODO: Change to configuration file
+	#loaded_agent = TDMPC2(cfg) 
+	#loaded_agent.load(cfg.checkpoint, "/home/walter/Desktop/encoder_checkpoint_3240.pt") # TODO: Change to configuration file
 
 	trainer_cls = OfflineTrainer if cfg.multitask else OnlineTrainer
+	encoder_location =  "/home/walter/Desktop/encoder_checkpoint_3240.pt"
 	trainer = trainer_cls(
 		cfg=cfg,
 		env=make_env(cfg),
-		agent=loaded_agent,
+		agent=TDMPC2(cfg, cfg.checkpoint, encoder_location),
 		buffer=Buffer(cfg),
 		logger=Logger(cfg),
 	)

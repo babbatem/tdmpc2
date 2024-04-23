@@ -14,7 +14,7 @@ class TDMPC2:
     and supports both state and pixel observations.
     """
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, checkpoint = None, encoder_loc = None):
         self.cfg = cfg
         self.device = torch.device("cuda")
         self.model = WorldModel(cfg).to(self.device)
@@ -54,6 +54,8 @@ class TDMPC2:
             if self.cfg.multitask
             else self._get_discount(cfg.episode_length)
         )
+        if(checkpoint != None and encoder_loc != None):
+            self.load(checkpoint, encoder_loc) # TODO: Change to configuration file
 
     def _get_discount(self, episode_length):
         """
