@@ -6,7 +6,7 @@ task: basic-wipe
 obs: state
 
 # evaluation
-checkpoint: checkpoint_2
+checkpoint: checkpoint_1
 eval_episodes: 10
 eval_freq: 10_000
 
