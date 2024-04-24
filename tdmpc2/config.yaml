@@ -11,7 +11,7 @@ eval_episodes: 10
 eval_freq: 10_000
 
 # training
-steps: 100_000
+steps: 1_000
 batch_size: 256
 reward_coef: 0.1
 value_coef: 0.1
@@ -25,7 +25,7 @@ discount_denom: 5
 discount_min: 0.95
 discount_max: 0.995
 buffer_size: 1_000_000
-exp_name: normal-with-pi
+exp_name: test
 data_dir: data_dir
 
 # planning
@@ -64,8 +64,8 @@ simnorm_dim: 8
 # logging
 wandb_project: tdmpc2-dk
 wandb_entity: robin-abba
-wandb_silent: false
-disable_wandb: false
+wandb_silent: true
+disable_wandb: true
 save_csv: true
 
 # misc
