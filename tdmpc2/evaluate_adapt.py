@@ -72,6 +72,20 @@ def evaluate(cfg: dict):
             )
         )
 
+    import wandb
+    from omegaconf import OmegaConf    
+    # project_name = cfg.get("wandb_project", "none")
+    # entity_name = cfg.get("wandb_entity", "none")
+    
+    wandb.init(
+            project="adaptation",
+            entity="robin-abba",
+            config=OmegaConf.to_container(cfg, resolve=True),
+            name="Adaptation_module_eval",
+            monitor_gym=True,
+            save_code=True,
+        )
+
     # Make environment
     env = make_env(cfg)
 
@@ -82,7 +96,7 @@ def evaluate(cfg: dict):
     ), f"Checkpoint {cfg.checkpoint} not found! Must be a valid filepath."
    
     # Loads previous model plus the new encoder
-    agent.load(cfg.checkpoint, "/home/walter/Desktop/encoder_checkpoint_3240.pt")
+    agent.load(cfg.checkpoint, "/home/dk/encoder_checkpoint_10000.pt")
     #agent.load(cfg.checkpoint)
     # TODO: Change to configuration file variable
     priv_size = 4
@@ -108,12 +122,14 @@ def evaluate(cfg: dict):
             if not cfg.multitask:
                 task_idx = None
             ep_rewards, ep_successes = [], []
-            for i in range(10): # TODO: Add a parameter in the config for the number of epochs
+            for i in range(cfg.eval_episodes): # TODO: Add a parameter in the config for the number of epochs
                 obs, done, ep_reward, t = env.reset(task_idx=task_idx), False, 0, 0
 
                 obs_reg = obs[0:-priv_size]
                 obs_ep = []
                 obs_ep.append(obs_reg)
+
+
 
                 if cfg.save_video:
                     frames = [env.render()]
@@ -132,6 +148,8 @@ def evaluate(cfg: dict):
                     
                     obs, reward, done, info = env.step(action)
                     ep_reward += reward
+                    if done:
+                        wandb.log({"Episode Success": info["success"], "Episode Reward": ep_reward})
 
                     obs_reg = obs[0:-priv_size]
                     obs_ep.append(obs_reg)
@@ -141,25 +159,36 @@ def evaluate(cfg: dict):
                         frames.append(env.render())
 
                     t += 1
+
+
                 obs_ep = []
                 torch.cuda.empty_cache()    
                 gc.collect()
                 ep_rewards.append(ep_reward)
                 ep_successes.append(info["success"])
                 print(info["success"])
+                avg_success = np.mean(ep_successes)
+                avg_reward = np.mean(ep_rewards)
+            
+                wandb.log({
+                    f"Average Success Rate {task}": avg_success,
+                    f"Average Reward {task}": avg_reward
+                })
                 if cfg.save_video:
                     imageio.mimsave(
                         os.path.join(video_dir, f"{task}-{i}.mp4"), frames, fps=15
                     )
-            ep_rewards = np.mean(ep_rewards)
-            ep_successes = np.mean(ep_successes)
+            
+            # ep_rewards = np.mean(ep_rewards)
+            # ep_successes = np.mean(ep_successes)
+
             if cfg.multitask:
                 scores.append(
                     ep_successes * 100 if task.startswith("mw-") else ep_rewards / 10
                 )
             print(
                 colored(
-                    f"  {task:<22}" f"\tR: {ep_rewards:.01f}  " f"\tS: {ep_successes:.02f}",
+                    f"  {task:<22}" f"\tR: {avg_reward:.01f}  " f"\tS: {avg_success:.02f}",
                     "yellow",
                 )
             )

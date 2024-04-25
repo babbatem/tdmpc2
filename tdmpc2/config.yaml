@@ -6,8 +6,8 @@ task: basic-wipe
 obs: state
 
 # evaluation
-checkpoint: checkpoint_2
-eval_episodes: 10
+checkpoint: "/home/dk/final.pt"
+eval_episodes: 1_000
 eval_freq: 10_000
 
 # training
