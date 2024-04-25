@@ -25,7 +25,7 @@ discount_denom: 5
 discount_min: 0.95
 discount_max: 0.995
 buffer_size: 1_000_000
-exp_name: normal-with-pi
+exp_name: base_line_priv
 data_dir: data_dir
 
 # planning
@@ -62,7 +62,7 @@ dropout: 0.01
 simnorm_dim: 8
 
 # logging
-wandb_project: tdmpc2-dk
+wandb_project: adaptation
 wandb_entity: robin-abba
 wandb_silent: false
 disable_wandb: false
