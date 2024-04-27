@@ -106,12 +106,13 @@ def train(cfg: dict):
 
         # TODO: Replace with configuration variable
         obs_shape = 21
+        action_shape = 3
         # TODO: Create config variable for the priviliged size
         priv_size = 4
         # TODO: Change history to be defined in the config file
         history_length = 20
         # Create the encoder
-        adapt_enc = create_encoder(cfg, obs_shape-priv_size, history_length)
+        adapt_enc = create_encoder(cfg, obs_shape-priv_size+action_shape, history_length)
 
         optimizer = torch.optim.Adam(adapt_enc.parameters())
         for i in range(cfg.adapt_episodes):
@@ -121,7 +122,9 @@ def train(cfg: dict):
             # Define history of obs
             # TODO: Delete obs in the array over time as more come in
             obs_ep = []
-            obs_reg = obs[0:-priv_size]
+            obs_reg = torch.cat((torch.tensor(obs[0:-priv_size]), torch.tensor([0,0,0])), dim=0)
+
+            
             obs_ep.append(obs_reg)
             epoch_loss = 0.0
             batches = 0
@@ -135,8 +138,8 @@ def train(cfg: dict):
                 
                 # NOTE: new code added for adaptation module
                 # Remove the priviliged information
-                obs_reg = obs[0:-priv_size]
-                
+                obs_reg = torch.cat((torch.tensor(obs[0:-priv_size]), torch.tensor(action)), dim=0)
+
                 obs_ep.append(obs_reg)
                 obs_flat = []
                 optimizer.zero_grad()

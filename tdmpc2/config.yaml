@@ -5,6 +5,10 @@ defaults:
 task: basic-wipe
 obs: state
 
+# adaptation
+adapt_episodes: 200_000
+
+
 # evaluation
 checkpoint: "/home/dk/final.pt"
 eval_episodes: 1_000

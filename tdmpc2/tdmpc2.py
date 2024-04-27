@@ -57,6 +57,9 @@ class TDMPC2:
         if(checkpoint != None and encoder_loc != None):
             self.load(checkpoint, encoder_loc) # TODO: Change to configuration file
 
+        # TODO: ADD TO CONFIGURATION FILE
+        self.horizon_length = 20
+
     def _get_discount(self, episode_length):
         """
         Returns discount factor for a given episode length.
@@ -114,7 +117,7 @@ class TDMPC2:
         self.model.load_state_dict(state_dict["model"])
 
     @torch.no_grad()
-    def act(self, obs, t0=False, eval_mode=False, task=None):
+    def act(self, obs, t0=False, eval_mode=False, task=None, episodic_obs=None):
         """
         Select an action by planning in the latent space of the world model.
 
@@ -128,11 +131,15 @@ class TDMPC2:
                 torch.Tensor: Action to take in the environment.
         """
         obs = obs.to(self.device, non_blocking=True).unsqueeze(0)
+        flattened_obs = obs
+        if self.horizon_length > 1 and episodic_obs is not None: 
+            flattened_obs = self.flatten_obs(episodic_obs)
         if task is not None:
             task = torch.tensor([task], device=self.device)
-        z = self.model.encode(obs, task)
+        z = self.model.encode(flattened_obs, task)
         if self.cfg.mpc:
             a = self.plan(z, t0=t0, eval_mode=eval_mode, task=task)[0]
+            #print("Got to action")
         else:
             a = self.model.pi(z, task)[int(not eval_mode)][0]
         return a.cpu()
@@ -243,6 +250,7 @@ class TDMPC2:
         # Select action
         score = score.squeeze(1).cpu().numpy()
         actions = elite_actions[:, np.random.choice(np.arange(score.shape[0]), p=score)]
+        #print(score)
         self._prev_mean = mean
         a = actions
         if not eval_mode:
@@ -329,7 +337,7 @@ class TDMPC2:
             next_z, pi, task, return_type="min", target=True
         )
 
-    def update(self, buffer):
+    def update(self, buffer, stage3 = False):
         """
         Main update function. Corresponds to one iteration of model learning.
 
@@ -344,6 +352,8 @@ class TDMPC2:
         # Compute targets
         with torch.no_grad():
             next_z = self.model.encode(obs[1:], task)
+            if(stage3):
+                next_z.detach()
             td_targets = self._td_target(next_z, reward, task)
 
         # Prepare for update
@@ -358,10 +368,14 @@ class TDMPC2:
             device=self.device,
         )
         z = self.model.encode(obs[0], task)
+        if(stage3):
+            z.detach()
         zs[0] = z
         consistency_loss = 0
         for t in range(self.cfg.horizon):
             z = self.model.next(z, action[t], task)
+            if(stage3):
+                z.detach()
             consistency_loss += F.mse_loss(z, next_z[t]) * self.cfg.rho**t
             zs[t + 1] = z
 
@@ -402,7 +416,9 @@ class TDMPC2:
         pi_loss = self.update_pi(zs.detach(), task)
 
         # Update decoder
-        dec_loss = self.update_dec(self.model.encode(obs[0], task).detach(), obs[0])
+        dec_loss = 0
+        if (not stage3):
+            dec_loss = self.update_dec(self.model.encode(obs[0], task).detach(), obs[0])
 
         # Update target Q-functions
         self.model.soft_update_target_Q()
@@ -419,3 +435,14 @@ class TDMPC2:
             "pi_scale": float(self.scale.value),
             "dec_loss": dec_loss,
         }
+    
+
+    
+    # Function to get horizon of previous experiences
+    def flatten_obs(self, obs_ep):
+        obs_flat = []
+        if (len(obs_ep) > self.horizon_length):
+            obs_flat = torch.cat(obs_ep[-self.horizon_length:], dim =0)
+        else:
+            obs_flat = torch.cat([torch.zeros_like(obs_ep[0])] * (self.horizon_length - len(obs_ep)) + obs_ep, dim =0)
+        return obs_flat.to(self.device)

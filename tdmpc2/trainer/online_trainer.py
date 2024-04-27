@@ -15,6 +15,8 @@ class OnlineTrainer(Trainer):
 		self._step = 0
 		self._ep_idx = 0
 		self._start_time = time()
+		# TODO: NEED TO MAKE INTO CONFIGURATION VARIABLE
+		self.priv_size = 4
 
 	def common_metrics(self):
 		"""Return a dictionary of current metrics."""
@@ -29,11 +31,16 @@ class OnlineTrainer(Trainer):
 		ep_rewards, ep_successes = [], []
 		for i in range(self.cfg.eval_episodes):
 			obs, done, ep_reward, t = self.env.reset(), False, 0, 0
+			obs_ep = []
+			obs_reg = obs[0:-self.priv_size]
+			obs_ep.append(obs_reg)
 			if self.cfg.save_video:
 				self.logger.video.init(self.env, enabled=(i==0))
 			while not done:
-				action = self.agent.act(obs, t0=t==0, eval_mode=True)
+				action = self.agent.act(obs, t0=t==0, eval_mode=True, episodic_obs=obs_ep)
 				obs, reward, done, info = self.env.step(action)
+				obs_reg = obs[0:-self.priv_size] 
+				obs_ep.append(obs_reg)
 				ep_reward += reward
 				t += 1
 				if self.cfg.save_video:
@@ -67,6 +74,7 @@ class OnlineTrainer(Trainer):
 	def train(self):
 		"""Train a TD-MPC2 agent."""
 		train_metrics, done, eval_next = {}, True, True
+		obs_ep = []
 		while self._step <= self.cfg.steps:
 
 			# Evaluate agent periodically
@@ -93,15 +101,22 @@ class OnlineTrainer(Trainer):
 					self._ep_idx = self.buffer.add(torch.cat(self._tds))
 
 				obs = self.env.reset()
-				self._tds = [self.to_td(obs)]
+				obs_ep = []
+				obs_reg = obs[0:-self.priv_size]
+				obs_ep.append(obs_reg)
+				flattened_obs = self.agent.flatten_obs(obs_ep)
+				self._tds = [self.to_td(flattened_obs)]
 
 			# Collect experience
 			if self._step > self.cfg.seed_steps:
-				action = self.agent.act(obs, t0=len(self._tds)==1)
+				action = self.agent.act(obs, t0=len(self._tds)==1, episodic_obs=obs_ep)
 			else:
 				action = self.env.rand_act()
 			obs, reward, done, info = self.env.step(action)
-			self._tds.append(self.to_td(obs, action, reward))
+			obs_reg = obs[0:-self.priv_size]
+			obs_ep.append(obs_reg)
+			flattened_obs = self.agent.flatten_obs(obs_ep)
+			self._tds.append(self.to_td(flattened_obs, action, reward))
 
 			# Update agent
 			if self._step >= self.cfg.seed_steps:
@@ -111,7 +126,7 @@ class OnlineTrainer(Trainer):
 				else:
 					num_updates = 1
 				for _ in range(num_updates):
-					_train_metrics = self.agent.update(self.buffer)
+					_train_metrics = self.agent.update(self.buffer,stage3=True)
 				train_metrics.update(_train_metrics)
 
 			self._step += 1

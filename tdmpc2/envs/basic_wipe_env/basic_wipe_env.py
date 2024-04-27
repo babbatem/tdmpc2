@@ -12,12 +12,12 @@ _this_file = pathlib.Path(__file__).resolve()
 
 FORCE_SCALE = 300
 TORQUE_SCALE = 40
-SUCCESS_THRESH = 0.1
+SUCCESS_THRESH = 0.05
 SUCCESS_TIMESTEPS = 10
 
 DR_ENABLED = True
 DR_MAX_FRICTION = 1
-DR_MAX_MASS = 50
+DR_MAX_MASS = 64
 
 MAX_STEPS = 100
 SUBSTEPS = 20
@@ -329,6 +329,6 @@ if __name__ == "__main__":
             )
             act = np.r_[act, 0.0]
             obs, reward, terminated, info = env.step(act)
-            print(obs)
+            #print(obs)
             print(env._check_success(), terminated)
             print(env.success_history)
