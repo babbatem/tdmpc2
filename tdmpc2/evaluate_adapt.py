@@ -125,7 +125,7 @@ def evaluate(cfg: dict):
             for i in range(cfg.eval_episodes): # TODO: Add a parameter in the config for the number of epochs
                 obs, done, ep_reward, t = env.reset(task_idx=task_idx), False, 0, 0
 
-                obs_reg = obs[0:-priv_size]
+                obs_reg = torch.cat((torch.tensor(obs[0:-priv_size]), torch.tensor([0,0,0])), dim=0)
                 obs_ep = []
                 obs_ep.append(obs_reg)
 
@@ -151,7 +151,7 @@ def evaluate(cfg: dict):
                     if done:
                         wandb.log({"Episode Success": info["success"], "Episode Reward": ep_reward})
 
-                    obs_reg = obs[0:-priv_size]
+                    obs_reg = torch.cat((torch.tensor(obs[0:-priv_size]), torch.tensor(action)), dim=0)
                     obs_ep.append(obs_reg)
 
                     if cfg.save_video:
