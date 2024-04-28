@@ -11,7 +11,7 @@ eval_episodes: 10
 eval_freq: 10_000
 
 # training
-steps: 1_000
+steps: 500_000
 batch_size: 256
 reward_coef: 0.1
 value_coef: 0.1
@@ -25,7 +25,7 @@ discount_denom: 5
 discount_min: 0.95
 discount_max: 0.995
 buffer_size: 1_000_000
-exp_name: test
+exp_name: exp_name
 data_dir: data_dir
 
 # planning
