@@ -1,3 +1,8 @@
+# NOTE: This script is influenced by the evaluate.py script provided by TDMPC2
+# Code written to make an adaptation module
+
+
+
 import os
 import wandb
 
@@ -30,26 +35,7 @@ torch.backends.cudnn.benchmark = True
 
 @hydra.main(config_name="config", config_path=".")
 def train(cfg: dict):
-    """
-    Script for training the adaptation module for a single-task / multi-task TD-MPC2 checkpoint.
-
-    Most relevant args:
-            `task`: task name (or mt30/mt80 for multi-task evaluation)
-            `model_size`: model size, must be one of `[1, 5, 19, 48, 317]` (default: 5)
-            `checkpoint`: path to model checkpoint to load
-            `eval_episodes`: number of episodes to evaluate on per task (default: 10)
-            `save_video`: whether to save a video of the evaluation (default: True)
-            `seed`: random seed (default: 1)
-
-    See config.yaml for a full list of args.
-
-    Example usage:
-    ````
-            $ python evaluate.py task=mt80 model_size=48 checkpoint=/path/to/mt80-48M.pt
-            $ python evaluate.py task=mt30 model_size=317 checkpoint=/path/to/mt30-317M.pt
-            $ python evaluate.py task=dog-run checkpoint=/path/to/dog-1.pt save_video=true
-    ```
-    """
+ 
     project_name = cfg.get("wandb_project", "none")
     entity_name = cfg.get("wandb_entity", "none")
     
@@ -139,7 +125,7 @@ def train(cfg: dict):
                 # NOTE: new code added for adaptation module
                 # Remove the priviliged information
                 obs_reg = torch.cat((torch.tensor(obs[0:-priv_size]), torch.tensor(action)), dim=0)
-
+                
                 obs_ep.append(obs_reg)
                 obs_flat = []
                 optimizer.zero_grad()

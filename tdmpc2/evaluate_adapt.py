@@ -1,5 +1,5 @@
-# NOTE: This script is based on the evaluate.py script provided by TDMPC
-
+# NOTE: This script is based on the evaluate.py script provided by TDMPC2
+# Code written to evaluate the adpation module
 
 import os
 import gc

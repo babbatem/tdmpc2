@@ -1,3 +1,5 @@
+# Unfinished code to implement a 3rd phase for Adaptation TD-MPC to retrain TDMPC
+
 import os
 os.environ['MUJOCO_GL'] = 'egl'
 os.environ['LAZY_LEGACY_OP'] = '0'
@@ -22,24 +24,7 @@ torch.backends.cudnn.benchmark = True
 
 @hydra.main(config_name='config', config_path='.')
 def train(cfg: dict):
-	"""
-	Script for training single-task / multi-task TD-MPC2 agents.
 
-	Most relevant args:
-		`task`: task name (or mt30/mt80 for multi-task training)
-		`model_size`: model size, must be one of `[1, 5, 19, 48, 317]` (default: 5)
-		`steps`: number of training/environment steps (default: 10M)
-		`seed`: random seed (default: 1)
-
-	See config.yaml for a full list of args.
-
-	Example usage:
-	```
-		$ python train.py task=mt80 model_size=48
-		$ python train.py task=mt30 model_size=317
-		$ python train.py task=dog-run steps=7000000
-	```
-	"""
 	assert torch.cuda.is_available()
 	assert cfg.steps > 0, 'Must train for at least 1 step.'
 	cfg = parse_cfg(cfg)
