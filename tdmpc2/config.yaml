@@ -29,8 +29,8 @@ discount_denom: 5
 discount_min: 0.95
 discount_max: 0.995
 buffer_size: 1_000_000
-exp_name: base_line_priv
-data_dir: data_dir
+exp_name: debug
+data_dir: debug-dir
 
 # planning
 mpc: true
@@ -68,8 +68,8 @@ simnorm_dim: 8
 # logging
 wandb_project: adaptation
 wandb_entity: robin-abba
-wandb_silent: false
-disable_wandb: false
+wandb_silent: true
+disable_wandb: true
 save_csv: true
 
 # misc
