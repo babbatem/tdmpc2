@@ -111,7 +111,7 @@ class WorldModel(nn.Module):
         elif emb.shape[0] == 1:
             emb = emb.repeat(x.shape[0], 1)
         return torch.cat([x, emb], dim=-1)
-
+    '''
     def encode(self, obs, task):
         """
         Encodes an observation into its latent representation.
@@ -122,7 +122,31 @@ class WorldModel(nn.Module):
         if self.cfg.obs == "rgb" and obs.ndim == 5:
             return torch.stack([self._encoder[self.cfg.obs](o) for o in obs])
         return self._encoder[self.cfg.obs](obs)
-
+    '''
+    def encode(self, obs, task):
+        """
+        Encodes an observation into its latent representation.
+        This implementation assumes a single state-based observation.
+        """
+        '''
+        print(f"Shape of obs: {obs.shape}")
+        print(f"Shape of obs[:-4]: {obs[:,:-4].shape}")
+        print(f"Shape of obs[-4:]: {obs[:,-4:].shape}")
+        print(self.cfg.obs+"1")
+        '''
+        if self.cfg.multitask:
+            obs = self.task_emb(obs, task)
+        if self.cfg.obs == "rgb" and obs.ndim == 5:
+            return torch.cat(torch.stack([self._encoder[self.cfg.obs](o) for o in obs[...,:-4]]), torch.stack([self._encoder[self.cfg.obs+"1"](o) for o in obs[...,-4:]]), dim=-1)
+            #return torch.stack([self._encoder[self.cfg.obs](o) for o in obs])
+        #print(self._encoder[self.cfg.obs](obs[:,:-4]).shape)
+        #print(self._encoder[self.cfg.obs+"1"](obs[:,-4:]).shape)
+        print(obs[:,:-4].shape)
+        obs_part1 = self._encoder[self.cfg.obs](obs[:,:-4])
+        obs_part2 = self._encoder[self.cfg.obs+"1"](obs[:,-4:])
+        output = torch.cat((obs_part1, obs_part2), dim=-1)
+        return output
+        #return self._encoder[self.cfg.obs](obs)
     def decode(self, z):
         return self._decoder(z)
 

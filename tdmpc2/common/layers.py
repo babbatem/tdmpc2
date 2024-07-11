@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from functorch import combine_state_for_ensemble
-
+import math
 
 class Ensemble(nn.Module):
     """
@@ -157,7 +157,7 @@ def conv(in_shape, num_channels, act=None):
         layers.append(act)
     return nn.Sequential(*layers)
 
-
+'''
 def enc(cfg, out={}):
     """
     Returns a dictionary of encoders for each observation in the dict.
@@ -177,7 +177,44 @@ def enc(cfg, out={}):
                 f"Encoder for observation type {k} not implemented."
             )
     return nn.ModuleDict(out)
-
+'''
+def enc(cfg, out={}):
+    """
+    Returns a dictionary of encoders for each observation in the dict.
+    """
+    for k in cfg.obs_shape.keys():
+        if k == "state":
+            print("1")
+            out[k] = mlp(
+                cfg.obs_shape[k][0]-4 + cfg.task_dim,
+                max(cfg.num_enc_layers - 1, 1) * [cfg.enc_dim],
+                math.floor(cfg.latent_dim/2),
+                act=SimNorm(cfg),
+            )
+            out["state1"] = mlp(
+                4+ cfg.task_dim,
+                max(cfg.num_enc_layers - 1, 1) * [cfg.enc_dim],
+                math.floor(cfg.latent_dim/2),
+                act=SimNorm(cfg),
+            )
+        elif k =="state1":
+            out[k] = mlp(
+                4+ cfg.task_dim,
+                max(cfg.num_enc_layers - 1, 1) * [cfg.enc_dim],
+                cfg.latent_dim,
+                act=SimNorm(cfg),
+            )
+        elif k == "rgb":
+            print("2")
+            #out[k] = conv(cfg.obs_shape[k], cfg.num_channels, act=SimNorm(cfg))
+            #print("got here")
+            #print(out[k])
+            out[k] = torch.tensor([conv(cfg.obs_shape[k]-4, cfg.num_channels, act=SimNorm(cfg)),conv(4, cfg.num_channels, act=SimNorm(cfg))])
+        else:
+            raise NotImplementedError(
+                f"Encoder for observation type {k} not implemented."
+            )
+    return nn.ModuleDict(out)
 
 def dec(cfg):
     # k = "state"  # assume we are using state observations
