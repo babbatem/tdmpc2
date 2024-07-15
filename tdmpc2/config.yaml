@@ -65,7 +65,7 @@ simnorm_dim: 8
 wandb_project: tdmpc2-dk
 wandb_entity: robin-abba
 wandb_silent: true
-disable_wandb: true
+disable_wandb: false
 save_csv: true
 
 # misc

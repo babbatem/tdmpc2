@@ -141,9 +141,8 @@ class WorldModel(nn.Module):
             #return torch.stack([self._encoder[self.cfg.obs](o) for o in obs])
         #print(self._encoder[self.cfg.obs](obs[:,:-4]).shape)
         #print(self._encoder[self.cfg.obs+"1"](obs[:,-4:]).shape)
-        print(obs[:,:-4].shape)
-        obs_part1 = self._encoder[self.cfg.obs](obs[:,:-4])
-        obs_part2 = self._encoder[self.cfg.obs+"1"](obs[:,-4:])
+        obs_part1 = self._encoder[self.cfg.obs](obs[...,:-4])
+        obs_part2 = self._encoder[self.cfg.obs+"1"](obs[...,-4:])
         output = torch.cat((obs_part1, obs_part2), dim=-1)
         return output
         #return self._encoder[self.cfg.obs](obs)
