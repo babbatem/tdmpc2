@@ -4,6 +4,7 @@ defaults:
 # environment
 task: basic-wipe
 obs: state
+priv_info: true
 
 # evaluation
 checkpoint: checkpoint_1
