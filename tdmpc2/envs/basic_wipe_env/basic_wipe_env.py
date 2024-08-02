@@ -10,14 +10,14 @@ import pathlib
 
 _this_file = pathlib.Path(__file__).resolve()
 
-FORCE_SCALE = 50
-TORQUE_SCALE = 5
-SUCCESS_THRESH = 0.05
+FORCE_SCALE = 300
+TORQUE_SCALE = 40
+SUCCESS_THRESH = 0.1
 SUCCESS_TIMESTEPS = 10
 
 DR_ENABLED = True
-DR_MAX_FRICTION = 2
-DR_MAX_MASS = 30
+DR_MAX_FRICTION = 0.25
+DR_MAX_MASS = 64
 
 MAX_STEPS = 100
 SUBSTEPS = 20
@@ -104,6 +104,51 @@ class BasicWipeEnv(gym.Env):
 
         self.max_episode_steps = MAX_STEPS
         self.success = False
+
+    def batch_reward_fn(self, states):
+        """
+        Compute reward on a batch of states for MPPI
+        """
+
+        # parse states 
+        qpos = states[:,:7]
+        xpos = qpos[:,:3]
+        xquat = qpos[:,3:]
+        num_states = len(qpos)
+
+        # norm quat
+        xquat = xquat / np.linalg.norm(xquat, axis=1, keepdims=True)
+
+        hand_rotations = Rotation.from_quat(xquat[:, [1, 2, 3, 0]])  # shape (num_states,)
+        target_rotations = Rotation.from_euler("z", np.full(num_states, self.target_rot))  # shape (num_states,)
+
+        # Apply rotations to vertices
+        # Expand dimensions to (num_states, 1, num_vertices, 3) for broadcasting
+        hand_rotmats = hand_rotations.as_matrix()[:, np.newaxis, :, :]  # shape (num_states, 1, 3, 3)
+        target_rotmats = target_rotations.as_matrix()[:, np.newaxis, :, :]  # shape (num_states, 1, 3, 3)
+
+        # Reshape CUBE_VERTICES to (1, num_vertices, 3, 1) for broadcasting
+        vertices = CUBE_VERTICES * CUBE_SIZE
+        vertices_expanded = vertices[np.newaxis, :, :, np.newaxis]  # shape (1, num_vertices, 3, 1)
+
+        # Rotate vertices
+        hand_vertices_rotated = np.matmul(hand_rotmats, vertices_expanded).squeeze(-1)  # shape (num_states, num_vertices, 3)
+        target_vertices_rotated = np.matmul(target_rotmats, vertices_expanded).squeeze(-1)  # shape (num_states, num_vertices, 3)
+
+        # Translate vertices
+        hand_vertices = xpos[:, np.newaxis, :] + hand_vertices_rotated  # shape (num_states, num_vertices, 3)
+        target_pos_arr = np.full((num_states,3), self.target_pos)
+        target_vertices = target_pos_arr[:, np.newaxis, :] + target_vertices_rotated  # shape (num_states, num_vertices, 3)
+
+        # Compute distances between corresponding vertices
+        distances = np.linalg.norm(hand_vertices - target_vertices, axis=2)  # shape (num_states, num_vertices)
+
+        # Sum distances for each state
+        sum_distances = np.sum(distances, axis=1)  # shape (num_states,)
+
+        # Compute rewards
+        rewards = -1.0 * sum_distances
+        return rewards
 
     def set_render_mode(self, mode):
         if self.viewer is not None and self.viewer.is_alive:
@@ -237,11 +282,8 @@ class BasicWipeEnv(gym.Env):
         return self._get_obs()
 
     def step(self, action):
-        # force in x and y
         force = action[0:2] * FORCE_SCALE
-        # torque in z
         torque = action[2] * TORQUE_SCALE
-        # [fx, fy ,0, 0, 0, tz]
         self.data.qfrc_applied = np.concatenate((force, [0], [0, 0, torque]))
 
         for _ in range(self.substeps):
@@ -319,6 +361,21 @@ class BasicWipeEnv(gym.Env):
                     pos2[2],
                 )
 
+
+def test_batch_reward():
+    env = BasicWipeEnv()
+    env.reset()
+    terminated = False
+    while not terminated:
+        act = (
+            5 * (env.target_pos - env.data.body("hand").xpos)
+            - 1.0 * env.data.qvel[:3]
+        )
+        act = np.r_[act, 0.0]
+        obs, reward, terminated, info = env.step(act)
+        obs_flat = np.concatenate([obs["obs"], obs["priv_info"]])
+        obs_batch = obs_flat.reshape(1, len(obs_flat))
+        print(np.allclose(reward, env.batch_reward_fn(obs_batch)[0]), reward)
 
 if __name__ == "__main__":
     env = BasicWipeEnv()
